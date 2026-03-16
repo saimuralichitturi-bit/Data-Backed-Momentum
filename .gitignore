@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# cached exchange data (re-fetchable)
+data/nse/*.csv
+data/bse/*.csv
+data/mcx/*.csv
+data/iex/*.csv
+
+# generated chart output (keep .gitkeep)
+output/charts/*.html
+output/charts/*.png
+output/*.json
