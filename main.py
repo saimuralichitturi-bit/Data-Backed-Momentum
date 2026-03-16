@@ -24,25 +24,25 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from src.fetchers.nse_fetcher import fetch_nse_fo_data
 from src.fetchers.bse_fetcher import fetch_bse_fo_data
-from src.fetchers.mcx_fetcher import fetch_mcx_fo_data
 from src.fetchers.iex_fetcher import fetch_iex_data
 from src.analysis.signals import compute_indicators, aggregate_signals, get_latest_signals
 from src.viz.charts import build_exchange_chart, build_signal_summary_chart, save_charts
+from src.viz.static_charts import plot_fo_analysis
 
 
 def parse_args():
     p = argparse.ArgumentParser(description="Exchange F&O Trading Signals")
-    p.add_argument("--days", type=int, default=60,
-                   help="Number of trading days to look back (default: 60)")
-    p.add_argument("--from", dest="from_date", type=str, default=None,
-                   help="Start date YYYY-MM-DD (overrides --days)")
+    p.add_argument("--days", type=int, default=None,
+                   help="Number of trading days to look back")
+    p.add_argument("--from", dest="from_date", type=str, default="2023-01-01",
+                   help="Start date YYYY-MM-DD (default: 2023-01-01)")
     p.add_argument("--to", dest="to_date", type=str, default=None,
                    help="End date YYYY-MM-DD (default: today)")
     p.add_argument("--no-cache", dest="no_cache", action="store_true",
                    help="Force re-fetch, ignore cached data")
-    p.add_argument("--exchanges", nargs="+", default=["NSE", "BSE", "MCX", "IEX"],
-                   choices=["NSE", "BSE", "MCX", "IEX"],
-                   help="Exchanges to include (default: all)")
+    p.add_argument("--exchanges", nargs="+", default=["NSE", "BSE", "IEX"],
+                   choices=["NSE", "BSE", "IEX"],
+                   help="Exchanges to include (MCX excluded — multiple expiry series)")
     return p.parse_args()
 
 
@@ -51,11 +51,10 @@ def main():
     use_cache = not args.no_cache
 
     to_date = datetime.strptime(args.to_date, "%Y-%m-%d") if args.to_date else datetime.today()
-    if args.from_date:
-        from_date = datetime.strptime(args.from_date, "%Y-%m-%d")
-    else:
-        # Approx trading days: multiply calendar days by 1.4 to account for weekends
+    if args.days:
         from_date = to_date - timedelta(days=int(args.days * 1.4))
+    else:
+        from_date = datetime.strptime(args.from_date, "%Y-%m-%d")
 
     print(f"\n{'='*60}")
     print(f"  Exchange F&O Signal Analysis")
@@ -68,7 +67,6 @@ def main():
     fetchers = {
         "NSE": lambda: fetch_nse_fo_data(from_date, to_date, use_cache),
         "BSE": lambda: fetch_bse_fo_data(from_date, to_date, use_cache),
-        "MCX": lambda: fetch_mcx_fo_data(from_date, to_date, use_cache),
         "IEX": lambda: fetch_iex_data(from_date, to_date, use_cache),
     }
     for exchange in args.exchanges:
@@ -122,6 +120,14 @@ def main():
     snapshot_fig = build_signal_summary_chart(latest_signals)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Static PNG (for inline display)
+    static_png = plot_fo_analysis(
+        processed,
+        composite_df=composite_df,
+        save_path=str(Path("output/charts") / f"fo_static_{ts}.png"),
+    )
+
     main_path, snap_path = save_charts(main_fig, snapshot_fig, tag=ts)
 
     # ── 5. Save signal JSON report
@@ -132,9 +138,11 @@ def main():
     print(f"[Report] Saved signal report: {report_path.name}")
 
     print(f"\n[Done] Charts saved to:")
-    print(f"  {main_path}")
+    print(f"  {static_png}  ← static PNG")
+    print(f"  {main_path}  ← interactive HTML")
     print(f"  {snap_path}")
     print()
+    return static_png
 
 
 if __name__ == "__main__":

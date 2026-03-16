@@ -182,44 +182,22 @@ def _add_exchange_traces(
             row=row, col=1,
         )
 
-    # ── Weekly expiry vertical lines
+    # ── Weekly expiry vertical lines — add as bulk shapes (fast)
     expiry_dates = _get_weekly_expiries(df, expiry_wd)
-    for exp_date in expiry_dates:
-        # Convert to string to avoid Plotly Timestamp arithmetic bug
-        exp_str = exp_date.strftime("%Y-%m-%d")
-        fig.add_vline(
-            x=exp_str,
-            line=dict(color="#b71c1c", width=1, dash="dot"),
-            row=row, col=1,
+    xref = f"x{row}" if row > 1 else "x"
+    yref = f"y{row}" if row > 1 else "y"
+    new_shapes = [
+        dict(
+            type="line",
+            xref=xref, yref="paper",
+            x0=ed.strftime("%Y-%m-%d"), x1=ed.strftime("%Y-%m-%d"),
+            y0=0, y1=1,
+            line=dict(color="#b71c1c", width=0.7, dash="dot"),
         )
-        # Add annotation separately on first panel only to avoid clutter
-        if row == 1:
-            fig.add_annotation(
-                x=exp_str,
-                y=1.0,
-                xref=f"x{row}",
-                yref="paper",
-                text="Exp",
-                font=dict(size=8, color="#b71c1c"),
-                showarrow=False,
-                textangle=-90,
-            )
-
-    # ── Signal icons on the top of bars (STRONG_BUY / STRONG_SHORT only)
-    strong = df[df["signal"].isin(["STRONG_BUY", "STRONG_SHORT"])] if "signal" in df.columns else pd.DataFrame()
-    if not strong.empty:
-        for _, srow in strong.iterrows():
-            symbol = "▲" if srow["signal"] == "STRONG_BUY" else "▼"
-            color = SIGNAL_COLORS[srow["signal"]]
-            fig.add_annotation(
-                x=srow["date"],
-                y=srow["turnover_cr"] * 1.03,
-                text=symbol,
-                font=dict(size=10, color=color),
-                showarrow=False,
-                row=row, col=1,
-                yref=f"y{row if row > 1 else ''}",
-            )
+        for ed in expiry_dates
+    ]
+    existing = list(fig.layout.shapes or [])
+    fig.update_layout(shapes=existing + new_shapes)
 
     fig.update_yaxes(
         title_text="Turnover (₹ Cr)",

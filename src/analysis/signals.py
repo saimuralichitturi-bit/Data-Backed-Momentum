@@ -18,10 +18,12 @@ import numpy as np
 from datetime import datetime, timedelta
 
 # Weekly expiry weekdays per exchange
+# NSE Nifty 50 weekly options: Tuesday
+# BSE Sensex weekly options: Tuesday (post-SEBI Oct-2024 rationalisation)
+# IEX Term-Ahead contracts: Tuesday
 EXPIRY_WEEKDAY = {
-    "NSE": 3,   # Thursday
-    "BSE": 3,   # Thursday
-    "MCX": 1,   # Tuesday
+    "NSE": 1,   # Tuesday  (Nifty weekly options)
+    "BSE": 1,   # Tuesday  (Sensex weekly options)
     "IEX": 1,   # Tuesday
 }
 
